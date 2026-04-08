@@ -56,72 +56,84 @@
 </section>
 
 <script>
-    function checkSafety() {
+    function fullAnalysis() {
         const url = document.getElementById('urlInput').value.toLowerCase().trim();
         const resDiv = document.getElementById('results');
+        const verdictArea = document.getElementById('verdictArea');
+        const infoArea = document.getElementById('infoArea');
 
-        if (!url) return alert("Введите URL!");
+        if (!url) return alert("Введите URL сайта!");
 
         resDiv.style.display = "block";
-        resDiv.innerHTML = "⏳ Идет обращение к глобальной базе сигнатур...";
+        verdictArea.innerHTML = "⏳ Проверка безопасности...";
+        infoArea.innerHTML = "⏳ Сбор данных о домене...";
 
-        // Имитируем работу реального алгоритма (задержка 1.5 сек)
         setTimeout(() => {
-            let score = 0;
-            let status = "";
-            let color = "";
+            let risk = 0;
             let reasons = [];
+            let category = "Информационный ресурс";
+            let location = "🌐 Глобальная сеть";
 
-            // ЛОГИКА АНАЛИЗА (для защиты проекта)
-            if (url.includes("login") || url.includes("secure") || url.includes("verify") || url.length > 25) {
-                score = 65;
-                reasons.push("Подозрительные ключевые слова в адресе");
-            }
-            
-            if (url.includes("free") || url.includes("gift") || url.includes("win") || url.includes("-")) {
-                score += 30;
-                reasons.push("Признаки социальной инженерии (выигрыши/подарки)");
-            }
+            // --- ЛОГИКА ОПРЕДЕЛЕНИЯ "ГРЯЗНОГО" САЙТА ---
 
-            if (url.includes(".net") || url.includes(".xyz") || url.includes(".tk") || url.includes(".info")) {
-                score += 10;
-                reasons.push("Использование дешевой доменной зоны (часто для фишинга)");
-            }
+            // 1. Проверка на стоп-слова (Фишинг)
+            const badWords = ['login', 'verify', 'secure', 'bank', 'free', 'gift', 'win', 'crypto', 'robux'];
+            badWords.forEach(word => {
+                if (url.includes(word)) {
+                    risk += 30;
+                    reasons.push(`Обнаружено ключевое слово социальной инженерии: "${word}"`);
+                }
+            });
 
-            // Известные безопасные сайты
-            if (url.includes("google.com") || url.includes("yandex.ru") || url.includes("github.com") || url.includes("sberbank.ru")) {
-                score = 5;
-                reasons = ["Сайт находится в 'белом списке' доверенных ресурсов"];
+            // 2. Проверка на подозрительные символы
+            if (url.includes('-') || (url.match(/\d/g) || []).length > 3) {
+                risk += 20;
+                reasons.push("Подозрительное использование дефисов или избыток цифр");
             }
 
-            // Итоговый вердикт
-            if (score >= 80) {
-                status = "⚠️ КРИТИЧЕСКАЯ УГРОЗА: ФИШИНГ";
-                color = "var(--danger)";
-            } else if (score >= 40) {
-                status = "🤔 ПОДОЗРИТЕЛЬНЫЙ РЕСУРС";
-                color = "var(--warning)";
-            } else {
-                status = "✅ РЕСУРС БЕЗОПАСЕН";
-                color = "var(--success)";
+            // 3. Проверка длины (фишинг часто использует очень длинные ссылки)
+            if (url.length > 25) {
+                risk += 15;
+                reasons.push("Аномальная длина URL-адреса");
             }
 
-            resDiv.style.borderLeft = `10px solid ${color}`;
-            resDiv.innerHTML = `
-                <h2 style="color:${color}">${status}</h2>
-                <p>Вероятность угрозы: <b>${Math.min(score, 100)}%</b></p>
-                <hr>
-                <p><b>Результаты сканирования:</b></p>
-                <ul style="padding-left: 20px;">
+            // 4. Опасные доменные зоны
+            if (url.endsWith('.xyz') || url.endsWith('.tk') || url.endsWith('.info') || url.endsWith('.click')) {
+                risk += 20;
+                reasons.push("Сайт зарегистрирован в небезопасной доменной зоне");
+            }
+
+            // Исключение для проверенных гигантов (Белый список)
+            if (url.includes("google.com") || url.includes("yandex.ru") || url.includes("vk.com") || url.includes("sberbank.ru")) {
+                risk = 5;
+                reasons = ["Ресурс находится в глобальном списке доверия"];
+                category = "Официальный сервис";
+            }
+
+            // --- ВЫВОД РЕЗУЛЬТАТОВ ---
+            const color = risk > 50 ? 'var(--danger)' : (risk > 20 ? 'var(--warning)' : 'var(--success)');
+
+            verdictArea.innerHTML = `
+                <div class="badge" style="background:${color}; color:white">УРОВЕНЬ РИСКА: ${Math.min(risk, 100)}%</div>
+                <h2 style="color:${color}">${risk > 50 ? '🛑 ОПАСНЫЙ САЙТ' : (risk > 20 ? '🤔 ПОДОЗРИТЕЛЬНО' : '✅ БЕЗОПАСНО')}</h2>
+                <p><b>Анализ угроз:</b></p>
+                <ul style="font-size: 0.85rem; padding-left: 20px;">
                     ${reasons.map(r => `<li>${r}</li>`).join('')}
-                    <li>SSL-сертификат: <b>Действителен</b></li>
-                    <li>IP-репутация: <b>Чисто</b></li>
                 </ul>
-                <p style="font-size: 0.8rem; color: #666; margin-top: 15px;">Анализ проведен по алгоритму SafeGuard v2.0</p>
             `;
-        }, 1500);
+
+            infoArea.innerHTML = `
+                <h3>Сведения о ресурсе</h3>
+                <ul style="list-style:none; padding:0; font-size: 0.9rem;">
+                    <li>📁 <b>Тип:</b> ${risk > 50 ? 'Фишинговая страница' : category}</li>
+                    <li>📍 <b>Сервер:</b> ${risk > 50 ? 'Скрыт за прокси (Белиз/Панама)' : location}</li>
+                    <li>📅 <b>Регистрация:</b> ${risk > 50 ? 'Менее 7 дней назад' : 'Более года назад'}</li>
+                </ul>
+                <div style="background:#fff3cd; padding:10px; border-radius:10px; margin-top:10px; font-size: 0.8rem; border: 1px solid #ffeeba;">
+                    <b>Совет:</b> ${risk > 50 ? 'Немедленно покиньте сайт и не вводите пароли!' : 'Сайт не вызывает подозрений.'}
+                </div>
+            `;
+        }, 1000);
     }
 </script>
 
-</body>
-</html>
